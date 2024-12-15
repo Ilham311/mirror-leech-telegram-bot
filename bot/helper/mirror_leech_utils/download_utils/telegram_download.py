@@ -6,8 +6,6 @@ from bot import (
     LOGGER,
     task_dict,
     task_dict_lock,
-    non_queued_dl,
-    queue_dict_lock,
     bot,
     user,
 )
@@ -52,7 +50,7 @@ class TelegramDownloadHelper:
         else:
             LOGGER.info(f"Start Queued Download from Telegram: {self._listener.name}")
 
-    async def _onDownloadProgress(self, current, total):
+    async def _on_download_progress(self, current, total):
         if self._listener.is_cancelled:
             if self.session == "user":
                 user.stop_transmission()
@@ -62,10 +60,8 @@ class TelegramDownloadHelper:
 
     async def _on_download_error(self, error):
         async with global_lock:
-            try:
+            if self._id in GLOBAL_GID:
                 GLOBAL_GID.remove(self._id)
-            except:
-                pass
         await self._listener.on_download_error(error)
 
     async def _on_download_complete(self):
@@ -76,7 +72,7 @@ class TelegramDownloadHelper:
     async def _download(self, message, path):
         try:
             download = await message.download(
-                file_name=path, progress=self._onDownloadProgress
+                file_name=path, progress=self._on_download_progress
             )
             if self._listener.is_cancelled:
                 await self._on_download_error("Cancelled by user!")
@@ -150,9 +146,10 @@ class TelegramDownloadHelper:
                         await send_status_message(self._listener.message)
                     await event.wait()
                     if self._listener.is_cancelled:
+                        async with global_lock:
+                            if self._id in GLOBAL_GID:
+                                GLOBAL_GID.remove(self._id)
                         return
-                    async with queue_dict_lock:
-                        non_queued_dl.add(self._listener.mid)
 
                 await self._on_download_start(gid, add_to_queue)
                 await self._download(message, path)

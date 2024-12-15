@@ -1,6 +1,6 @@
 from asyncio import sleep, gather
 
-from bot import LOGGER, qbittorrent_client, QbTorrents, qb_listener_lock
+from bot import LOGGER, qbittorrent_client, qb_torrents, qb_listener_lock
 from ...ext_utils.bot_utils import sync_to_async
 from ...ext_utils.status_utils import (
     MirrorStatus,
@@ -59,11 +59,11 @@ class QbittorrentStatus:
         elif state in ["pausedDL", "pausedUP"]:
             return MirrorStatus.STATUS_PAUSED
         elif state in ["checkingUP", "checkingDL"]:
-            return MirrorStatus.STATUS_CHECKING
+            return MirrorStatus.STATUS_CHECK
         elif state in ["stalledUP", "uploading"] and self.seeding:
-            return MirrorStatus.STATUS_SEEDING
+            return MirrorStatus.STATUS_SEED
         else:
-            return MirrorStatus.STATUS_DOWNLOADING
+            return MirrorStatus.STATUS_DOWNLOAD
 
     def seeders_num(self):
         return self._info.num_seeds
@@ -118,5 +118,5 @@ class QbittorrentStatus:
                 ),
             )
             async with qb_listener_lock:
-                if self._info.tags in QbTorrents:
-                    del QbTorrents[self._info.tags]
+                if self._info.tags in qb_torrents:
+                    del qb_torrents[self._info.tags]

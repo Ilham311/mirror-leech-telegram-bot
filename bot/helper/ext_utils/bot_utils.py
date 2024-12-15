@@ -19,7 +19,8 @@ from .help_messages import (
 )
 
 COMMAND_USAGE = {}
-THREADPOOL = ThreadPoolExecutor(max_workers=99999)
+
+THREAD_POOL = ThreadPoolExecutor(max_workers=3000)
 
 
 class SetInterval:
@@ -54,16 +55,14 @@ def create_help_buttons():
 
 def bt_selection_buttons(id_):
     gid = id_[:12] if len(id_) > 25 else id_
-    pincode = "".join([n for n in id_ if n.isdigit()][:4])
+    pin = "".join([n for n in id_ if n.isdigit()][:4])
     buttons = ButtonMaker()
     BASE_URL = config_dict["BASE_URL"]
     if config_dict["WEB_PINCODE"]:
-        buttons.url_button("Select Files", f"{BASE_URL}/app/files/{id_}")
-        buttons.data_button("Pincode", f"sel pin {gid} {pincode}")
+        buttons.url_button("Select Files", f"{BASE_URL}/app/files?gid={id_}")
+        buttons.data_button("Pincode", f"sel pin {gid} {pin}")
     else:
-        buttons.url_button(
-            "Select Files", f"{BASE_URL}/app/files/{id_}?pin_code={pincode}"
-        )
+        buttons.url_button("Select Files", f"{BASE_URL}/app/files?gid={id_}&pin={pin}")
     buttons.data_button("Done Selecting", f"sel done {gid} {id_}")
     buttons.data_button("Cancel", f"sel cancel {gid}")
     return buttons.build_menu(2)
@@ -103,7 +102,7 @@ def arg_parser(items, arg_base):
         "-sync",
         "-ml",
         "-doc",
-        "-med"
+        "-med",
     }
     t = len(items)
     i = 0
@@ -117,7 +116,8 @@ def arg_parser(items, arg_base):
             if (
                 i + 1 == t
                 and part in bool_arg_set
-                or part in ["-s", "-j", "-f", "-fd", "-fu", "-sync", "-ml", "-doc", "-med"]
+                or part
+                in ["-s", "-j", "-f", "-fd", "-fu", "-sync", "-ml", "-doc", "-med"]
             ):
                 arg_base[part] = True
             else:
@@ -170,13 +170,6 @@ def update_user_ldata(id_, key, value):
     user_data[id_][key] = value
 
 
-async def retry_function(func, *args, **kwargs):
-    try:
-        return await func(*args, **kwargs)
-    except:
-        return await retry_function(func, *args, **kwargs)
-
-
 async def cmd_exec(cmd, shell=False):
     if shell:
         proc = await create_subprocess_shell(cmd, stdout=PIPE, stderr=PIPE)
@@ -205,7 +198,7 @@ def new_task(func):
 
 async def sync_to_async(func, *args, wait=True, **kwargs):
     pfunc = partial(func, *args, **kwargs)
-    future = bot_loop.run_in_executor(THREADPOOL, pfunc)
+    future = bot_loop.run_in_executor(THREAD_POOL, pfunc)
     return await future if wait else future
 
 
